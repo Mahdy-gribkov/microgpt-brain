@@ -2,7 +2,7 @@
 
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Environment } from "@react-three/drei";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import TransformerScene from "./scene/TransformerScene";
 import { EffectComposer, Bloom, Noise, Vignette, ChromaticAberration } from "@react-three/postprocessing";
 import { SCENE_CONFIG } from "@/lib/visualizer-constants";
@@ -14,11 +14,17 @@ import { AnimatePresence } from "framer-motion";
 interface VisualizerProps {
     trace: InferenceTrace | null;
     processing: boolean;
+    startTour?: boolean;
 }
 
-export default function Visualizer({ trace, processing }: VisualizerProps) {
-    const [isTourActive, setIsTourActive] = useState(false);
+export default function Visualizer({ trace, processing, startTour = false }: VisualizerProps) {
+    const [isTourActive, setIsTourActive] = useState(startTour);
     const [inspectorData, setInspectorData] = useState<any>(null);
+
+    // Effect to react to prop changes if tour is triggered externally later
+    useEffect(() => {
+        if (startTour) setIsTourActive(true);
+    }, [startTour]);
 
     return (
         <div className="w-full h-screen bg-[#0c0b0e] relative">

@@ -9,8 +9,12 @@ import { Tokenizer } from "@/engine/visualizer-tokenizer";
 import { InferenceTrace, ModelConfig, ModelWeights } from "@/lib/visualizer-types";
 import { useInView } from "framer-motion";
 
-export default function VisualizerSection() {
-    const sectionRef = useRef(null);
+interface VisualizerSectionProps {
+    startTour?: boolean;
+}
+
+export default function VisualizerSection({ startTour }: VisualizerSectionProps) {
+    const sectionRef = useRef<HTMLDivElement>(null);
     const isInView = useInView(sectionRef, { once: true, margin: "-100px" });
 
     // Lazy load state to save resources until scrolled into view
@@ -99,7 +103,7 @@ export default function VisualizerSection() {
             {isInView ? (
                 <>
                     <div className="absolute inset-0 z-0">
-                        <Visualizer trace={trace} processing={isProcessing} />
+                        <Visualizer trace={trace} processing={isProcessing} startTour={startTour} />
                     </div>
 
                     {/* Controls Overlay */}

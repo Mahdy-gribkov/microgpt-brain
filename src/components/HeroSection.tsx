@@ -25,7 +25,7 @@ const wordVariants = {
   visible: { opacity: 1, y: 0, transition: SPRING.gentle },
 };
 
-export function HeroSection({ onScrollToPlayground, gpuAvailable, gpuName }: HeroSectionProps) {
+export function HeroSection({ onScrollToPlayground, onStartTour, gpuAvailable, gpuName }: HeroSectionProps) {
   return (
     <section className="min-h-[80vh] flex flex-col items-center justify-center px-4 text-center relative">
       <motion.div
