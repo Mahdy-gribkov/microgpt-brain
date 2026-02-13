@@ -12,7 +12,7 @@ import { useInView } from "framer-motion";
 export default function VisualizerSection() {
     const sectionRef = useRef(null);
     const isInView = useInView(sectionRef, { once: true, margin: "-100px" });
-    
+
     // Lazy load state to save resources until scrolled into view
     const [weights, setWeights] = useState<any>(null);
     const [trace, setTrace] = useState<InferenceTrace | null>(null);
@@ -78,49 +78,58 @@ export default function VisualizerSection() {
     }, [temperature, topK, weights, modelConfig]);
 
     return (
-        <section ref={sectionRef} className="relative w-full h-[800px] bg-black text-white overflow-hidden border-t border-white/10">
+        <section ref={sectionRef} className="relative w-full h-[900px] border-y border-white/5 overflow-hidden">
+            {/* Ambient Background Glow */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-amber-900/10 via-transparent to-transparent opacity-50 pointer-events-none" />
+
             {/* Header / Title Overlay */}
-            <div className="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none">
-                <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#d4943a] to-[#ffcc80] mb-2 drop-shadow-lg">
+            <div className="absolute top-0 left-0 w-full p-8 z-10 pointer-events-none flex flex-col items-center pt-12">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono text-amber-500/80 mb-4 tracking-widest uppercase">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    Live Inference Engine
+                </div>
+                <h2 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-200 via-amber-500 to-amber-200 mb-4 drop-shadow-[0_0_15px_rgba(212,148,58,0.3)] text-center">
                     Neural Internals
                 </h2>
-                <p className="text-white/60 max-w-md text-sm">
-                    Interact with a pre-trained GPT-2 (Small) model in 3D. Inspect attention heads, embeddings, and layer activations in real-time.
+                <p className="text-white/40 max-w-lg text-center text-sm leading-relaxed">
+                    Peer inside the transformer architecture. Watch tokens flow through attention heads and MLP layers in real-time.
                 </p>
             </div>
 
             {isInView ? (
                 <>
-                   <div className="absolute inset-0 z-0">
+                    <div className="absolute inset-0 z-0">
                         <Visualizer trace={trace} processing={isProcessing} />
-                   </div>
-                    
+                    </div>
+
                     {/* Controls Overlay */}
-                    <div className="absolute inset-0 z-20 pointer-events-none">
-                         {/* Input Bar needs pointer events */}
-                        <div className="pointer-events-auto w-full flex justify-center pt-24">
-                             <div className="w-full max-w-2xl px-4">
-                                <InputBar onProcess={(t) => handleProcess(t)} isProcessing={isProcessing} />
-                             </div>
+                    <div className="absolute inset-0 z-20 pointer-events-none flex flex-col justify-end">
+                        {/* Sidebar (Right HUD) */}
+                        <div className="absolute right-0 top-0 h-full w-full max-w-md pointer-events-none">
+                            <div className="pointer-events-auto h-full p-6 flex flex-col justify-center">
+                                <Sidebar
+                                    trace={trace}
+                                    currentStep={0}
+                                    hoveredLayer={null}
+                                    temperature={temperature}
+                                    topK={topK}
+                                    onParamsChange={handleParamsChange}
+                                />
+                            </div>
                         </div>
 
-                        {/* Sidebar needs pointer events */}
-                        <div className="pointer-events-auto absolute right-0 top-0 h-full">
-                            <Sidebar
-                                trace={trace}
-                                currentStep={0}
-                                hoveredLayer={null}
-                                temperature={temperature}
-                                topK={topK}
-                                onParamsChange={handleParamsChange}
-                            />
+                        {/* Input Bar (Bottom Command Deck) */}
+                        <div className="pointer-events-auto w-full pb-12 flex justify-center bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-20">
+                            <div className="w-full max-w-3xl px-6">
+                                <InputBar onProcess={(t) => handleProcess(t)} isProcessing={isProcessing} />
+                            </div>
                         </div>
                     </div>
                 </>
             ) : (
-                 <div className="w-full h-full flex items-center justify-center text-white/30">
-                    <p>Scroll into view to load 3D Engine...</p>
-                 </div>
+                <div className="w-full h-full flex items-center justify-center text-white/20 font-mono text-xs uppercase tracking-widest">
+                    [ Scroll to Initialize Neural Engine ]
+                </div>
             )}
         </section>
     );
