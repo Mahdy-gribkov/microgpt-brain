@@ -16,6 +16,7 @@ import { MODEL_DEFAULTS, TRAINING_DEFAULTS, SECURITY_LIMITS, MODEL_PRESETS } fro
 import { computeParamCount } from '../engine/model';
 import type { WorkerResponse, TrainRequest } from '../worker/messages';
 import type { AdamConfig } from '../engine/optimizer';
+import { useGpuDetector } from '../hooks/useGpuDetector';
 
 export type TrainingStatus = 'idle' | 'initializing' | 'training' | 'complete' | 'error';
 
@@ -46,8 +47,7 @@ export function Playground() {
   const [vocabSize, setVocabSize] = useState(0);
   const [generatedText, setGeneratedText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [gpuAvailable, setGpuAvailable] = useState<boolean | null>(null);
-  const [gpuName, setGpuName] = useState('');
+  const { available: gpuAvailable, gpuName } = useGpuDetector();
   const [educationOpen, setEducationOpen] = useState(false);
   const [activePreset, setActivePreset] = useState<string | null>('small');
   const [trainingStartTime, setTrainingStartTime] = useState<number | null>(null);
@@ -118,6 +118,9 @@ export function Playground() {
     );
     workerRef.current = worker;
 
+    // Initialize GPU safely
+    worker.postMessage({ type: 'init_gpu' });
+
     worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
       const msg = e.data;
       switch (msg.type) {
@@ -146,8 +149,8 @@ export function Playground() {
           workerRef.current = null;
           break;
         case 'gpu-status':
-          setGpuAvailable(msg.available);
-          setGpuName(msg.gpuName);
+          // GPU status is now handled by the useGpuDetector hook globally
+          // We can log it or specific worker metrics here if needed
           break;
         case 'error':
           setStatus('error');

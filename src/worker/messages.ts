@@ -58,5 +58,9 @@ export interface GpuStatusMessage {
   backend: 'cpu' | 'webgpu';
 }
 
-export type WorkerRequest = TrainRequest | GenerateRequest | StopRequest;
+export interface InitGpuRequest {
+  type: 'init_gpu';
+}
+
+export type WorkerRequest = TrainRequest | GenerateRequest | StopRequest | InitGpuRequest;
 export type WorkerResponse = TrainProgress | TrainComplete | GenerateResult | ErrorMessage | ReadyMessage | TimeoutMessage | GpuStatusMessage;

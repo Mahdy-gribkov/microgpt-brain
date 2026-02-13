@@ -6,6 +6,7 @@ import { SPRING, STAGGER } from '../lib/constants';
 
 interface HeroSectionProps {
   onScrollToPlayground: () => void;
+  onStartTour?: () => void;
   gpuAvailable: boolean | null;
   gpuName: string;
 }
@@ -74,15 +75,29 @@ export function HeroSection({ onScrollToPlayground, gpuAvailable, gpuName }: Her
           Inspired by Andrej Karpathy&apos;s nanoGPT, makemore, and the GPT-2 paper
         </motion.p>
 
-        <motion.button
-          variants={wordVariants}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onScrollToPlayground}
-          className="px-8 py-3 rounded-xl bg-gradient-to-r from-amber-dim via-amber to-amber-light text-bg font-semibold text-base shadow-lg shadow-amber/20 hover:shadow-amber/30 transition-shadow"
-        >
-          Start Training
-        </motion.button>
+        <div className="flex gap-4 justify-center">
+          <motion.button
+            variants={wordVariants}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onScrollToPlayground}
+            className="px-8 py-3 rounded-xl bg-gradient-to-r from-amber-dim via-amber to-amber-light text-bg font-semibold text-base shadow-lg shadow-amber/20 hover:shadow-amber/30 transition-shadow"
+          >
+            Start Training
+          </motion.button>
+
+          {onStartTour && (
+            <motion.button
+              variants={wordVariants}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onStartTour}
+              className="px-8 py-3 rounded-xl border border-muted/20 text-muted hover:text-text hover:border-amber/50 hover:bg-amber/5 font-semibold text-base transition-all backdrop-blur-sm"
+            >
+              Start Guided Tour
+            </motion.button>
+          )}
+        </div>
       </motion.div>
 
       {/* Scroll indicator */}

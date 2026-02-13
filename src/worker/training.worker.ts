@@ -11,8 +11,10 @@ let tokenizer: CharTokenizer | null = null;
 let stopRequested = false;
 let gpuDetected = false;
 
-// Detect GPU on worker load
-(async () => {
+// Safe initialization: Do not run async code at top level.
+// Wait for 'init_gpu' message or initialize lazily.
+
+async function handleInitGpu() {
   try {
     const ctx = await initGpu();
     if (ctx) {
@@ -24,19 +26,11 @@ let gpuDetected = false;
         backend: 'webgpu',
       };
       self.postMessage(msg);
-      // Note: GPU backend is available but not yet wired into the training loop.
-      // The model currently uses CPU ops directly. Future: pass backend to model.
-      ctx.device.destroy(); // Release for now — will re-init when needed
+      ctx.device.destroy();
     } else {
-      const msg: GpuStatusMessage = {
-        type: 'gpu-status',
-        available: false,
-        gpuName: '',
-        backend: 'cpu',
-      };
-      self.postMessage(msg);
+      throw new Error("GPU context null");
     }
-  } catch {
+  } catch (e) {
     const msg: GpuStatusMessage = {
       type: 'gpu-status',
       available: false,
@@ -45,7 +39,7 @@ let gpuDetected = false;
     };
     self.postMessage(msg);
   }
-})();
+}
 
 function validateTrainInput(msg: Extract<WorkerRequest, { type: 'train' }>) {
   if (typeof msg.text !== 'string') throw new Error('Invalid input: text must be a string');
@@ -64,10 +58,13 @@ function validateTrainInput(msg: Extract<WorkerRequest, { type: 'train' }>) {
   if (maxSteps < 1 || maxSteps > 2000) throw new Error(`maxSteps must be 1-2000, got ${maxSteps}`);
 }
 
-self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
+self.onmessage = async (e: MessageEvent<any>) => {
   const msg = e.data;
 
   switch (msg.type) {
+    case 'init_gpu':
+      await handleInitGpu();
+      break;
     case 'train':
       await handleTrain(msg);
       break;
