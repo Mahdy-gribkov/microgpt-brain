@@ -4,9 +4,11 @@ const securityHeaders = [
   {
     key: 'Content-Security-Policy',
     value: [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      "default-src 'self' https: data: blob:",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // 'unsafe-eval' often needed for some 3D libs dev tools
       "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self' https:",
       "worker-src 'self' blob:",
       "frame-ancestors 'none'",
     ].join('; '),
