@@ -4,7 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Environment } from "@react-three/drei";
 import { useState, Suspense } from "react";
 import TransformerScene from "./scene/TransformerScene";
-import { EffectComposer, Bloom, Noise, Vignette } from "@react-three/postprocessing";
+import { EffectComposer, Bloom, Noise, Vignette, ChromaticAberration } from "@react-three/postprocessing";
 import { SCENE_CONFIG } from "@/lib/visualizer-constants";
 import { InferenceTrace } from "@/lib/visualizer-types";
 import GuidedTour from "./education/GuidedTour";
@@ -47,10 +47,12 @@ export default function Visualizer({ trace, processing }: VisualizerProps) {
 
                 <GuidedTour isActive={isTourActive} onEnd={() => setIsTourActive(false)} />
 
-                <EffectComposer>
-                    <Bloom luminanceThreshold={0.1} luminanceSmoothing={0.9} height={300} intensity={1.5} />
+                <EffectComposer disableNormalPass>
+                    <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={300} intensity={2.0} levels={8} />
                     <Noise opacity={0.05} />
                     <Vignette eskil={false} offset={0.1} darkness={1.1} />
+                    {/* @ts-ignore */}
+                    <ChromaticAberration offset={[0.002, 0.002]} />
                 </EffectComposer>
             </Canvas>
 
