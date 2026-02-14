@@ -4,19 +4,18 @@ import { InferenceTrace } from "@/lib/visualizer-types";
 import { motion, AnimatePresence } from "framer-motion";
 import { Cpu, Layers, Zap, Settings } from "lucide-react";
 
-interface SidebarProps {
-    trace: InferenceTrace | null;
-    currentStep: number;
-    hoveredLayer: number | null;
-    temperature: number;
-    topK: number;
-    onParamsChange: (temp: number, k: number) => void;
+interface SliderProps {
+    label: string;
+    value: number;
+    min: number;
+    max: number;
+    step: number;
+    onChange: (v: number) => void;
+    unit: string;
 }
 
-export default function Sidebar({ trace, currentStep, hoveredLayer, temperature, topK, onParamsChange }: SidebarProps) {
-
-    // Premium slider component
-    const Slider = ({ label, value, min, max, step, onChange, unit }: any) => (
+function Slider({ label, value, min, max, step, onChange, unit }: SliderProps) {
+    return (
         <div className="mb-6">
             <div className="flex justify-between text-[10px] font-mono text-gray-400 mb-2 uppercase tracking-wide">
                 <span>{label}</span>
@@ -34,13 +33,22 @@ export default function Sidebar({ trace, currentStep, hoveredLayer, temperature,
                     step={step}
                     value={value}
                     onChange={(e) => onChange(parseFloat(e.target.value))}
+                    aria-label={label}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
             </div>
         </div>
     );
+}
 
-    const Controls = () => (
+interface ControlsProps {
+    temperature: number;
+    topK: number;
+    onParamsChange: (temp: number, k: number) => void;
+}
+
+function Controls({ temperature, topK, onParamsChange }: ControlsProps) {
+    return (
         <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-xl p-5 shadow-2xl">
             <div className="flex items-center gap-2 mb-4 pb-2 border-b border-white/5">
                 <Settings className="w-3 h-3 text-amber-500" />
@@ -62,6 +70,18 @@ export default function Sidebar({ trace, currentStep, hoveredLayer, temperature,
             />
         </div>
     );
+}
+
+interface SidebarProps {
+    trace: InferenceTrace | null;
+    currentStep: number;
+    hoveredLayer: number | null;
+    temperature: number;
+    topK: number;
+    onParamsChange: (temp: number, k: number) => void;
+}
+
+export default function Sidebar({ trace, currentStep, hoveredLayer, temperature, topK, onParamsChange }: SidebarProps) {
 
     // Initial State (No Trace)
     if (!trace) {
@@ -71,7 +91,7 @@ export default function Sidebar({ trace, currentStep, hoveredLayer, temperature,
                 animate={{ x: 0, opacity: 1 }}
                 className="w-80 space-y-4"
             >
-                <Controls />
+                <Controls temperature={temperature} topK={topK} onParamsChange={onParamsChange} />
 
                 <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-xl p-5 shadow-2xl">
                     <div className="flex items-center gap-2 mb-4 pb-2 border-b border-white/5">
@@ -116,7 +136,7 @@ export default function Sidebar({ trace, currentStep, hoveredLayer, temperature,
                 </div>
             </div>
 
-            <Controls />
+            <Controls temperature={temperature} topK={topK} onParamsChange={onParamsChange} />
 
             <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-xl p-5 shadow-2xl">
                 <div className="flex items-center gap-2 mb-4 pb-2 border-b border-white/5">

@@ -24,14 +24,14 @@ export default function TransformerBlock({ layerIndex, trace, numTokens, activeS
         if (meshRef.current && isActive) {
             const time = state.clock.getElapsedTime();
             const pulse = (Math.sin(time * 4) + 1) * 0.5; // 0 to 1
-            const material = meshRef.current.material as THREE.MeshPhysicalMaterial;
+            const material = meshRef.current.material as THREE.MeshStandardMaterial;
             material.emissiveIntensity = 0.5 + pulse * 1.5; // Pulse between 0.5 and 2.0
         }
     });
 
     const totalWidth = (numTokens - 1) * SCENE_CONFIG.TOKEN_SPACING;
 
-    const handleInspect = (e: any) => {
+    const handleInspect = (e: THREE.Event & { stopPropagation: () => void }) => {
         e.stopPropagation();
         onInspect?.({
             title: `Transformer Block ${layerIndex + 1}`,
@@ -86,12 +86,10 @@ export default function TransformerBlock({ layerIndex, trace, numTokens, activeS
                 onPointerOut={() => { document.body.style.cursor = 'auto'; isHovered.current = false; }}
             >
                 <boxGeometry args={[totalWidth + 6, 6, 0.2]} />
-                <meshPhysicalMaterial
+                <meshStandardMaterial
                     color={isActive ? SCENE_CONFIG.COLORS.accent : "#2a2a2a"}
-                    transmission={0.9}
-                    thickness={1}
-                    roughness={0.2}
-                    metalness={0.8}
+                    roughness={0.3}
+                    metalness={0.6}
                     transparent
                     opacity={0.6}
                     emissive={isActive ? SCENE_CONFIG.COLORS.accent : "#000"}
@@ -115,7 +113,6 @@ export default function TransformerBlock({ layerIndex, trace, numTokens, activeS
                 position={[-totalWidth / 2 - 4, 0.5, 0]}
                 fontSize={0.6}
                 color={isActive ? SCENE_CONFIG.COLORS.accent : "gray"}
-                font="/fonts/GeistMono-Regular.ttf"
                 anchorX="right"
             >
                 LAYER {layerIndex + 1}

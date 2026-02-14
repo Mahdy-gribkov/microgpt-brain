@@ -18,7 +18,7 @@ export default function ComponentInspector({ data, onClose }: InspectorProps) {
         >
             <div className="flex justify-between items-start mb-4">
                 <h2 className="text-xl font-bold text-white">{data.title}</h2>
-                <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+                <button type="button" onClick={onClose} aria-label="Close inspector" className="text-gray-400 hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 rounded">✕</button>
             </div>
 
             <div className="space-y-6">
@@ -45,7 +45,7 @@ export default function ComponentInspector({ data, onClose }: InspectorProps) {
                                     key={i}
                                     className="h-6 rounded-sm transition-colors"
                                     style={{
-                                        backgroundColor: `rgba(139, 92, 246, ${Math.abs(v)})`
+                                        backgroundColor: `rgba(212, 148, 58, ${Math.abs(v)})`
                                     }}
                                     title={v.toFixed(3)}
                                 />

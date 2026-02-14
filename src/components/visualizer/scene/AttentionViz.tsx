@@ -8,7 +8,7 @@ interface AttentionVizProps {
     numTokens: number;
 }
 
-export default function AttentionViz({ attentionScores, numTokens }: AttentionVizProps) {
+export default function AttentionViz({ attentionScores }: AttentionVizProps) {
     const lines = useMemo(() => {
         const segments: React.ReactNode[] = [];
         const seqLen = attentionScores[0].length;

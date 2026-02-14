@@ -1,7 +1,6 @@
 import { SCENE_CONFIG } from "@/lib/visualizer-constants";
 import { InferenceTrace, InspectorData } from "@/lib/visualizer-types";
 import { Text } from "@react-three/drei";
-import { useMemo } from "react";
 import * as THREE from "three";
 
 interface OutputLayerProps {
@@ -28,7 +27,7 @@ export default function OutputLayer({ trace, layerIndex, activeStep, onInspect }
         .sort((a, b) => b.p - a.p)
         .slice(0, topK);
 
-    const handleInspect = (e: any) => {
+    const handleInspect = (e: THREE.Event & { stopPropagation: () => void }) => {
         e.stopPropagation();
         onInspect?.({
             title: "Output Layer (Logits -> Softmax)",

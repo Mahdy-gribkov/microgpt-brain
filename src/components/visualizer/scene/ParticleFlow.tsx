@@ -1,26 +1,36 @@
-import { useRef, useMemo } from "react";
+import { useRef, useState, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { SCENE_CONFIG } from "@/lib/visualizer-constants";
 
-export default function ParticleFlow({ topHeight }: { topHeight: number }) {
-    const count = 800; // Increased density
-    const mesh = useRef<THREE.InstancedMesh>(null);
-    const lightMesh = useRef<THREE.InstancedMesh>(null);
+// Seeded PRNG for deterministic particle positions (pure during render)
+function seededRandom(seed: number): () => number {
+    let s = seed;
+    return () => {
+        s = (s * 16807 + 0) % 2147483647;
+        return (s - 1) / 2147483646;
+    };
+}
 
-    // Random starting positions
-    const particles = useMemo(() => {
-        const temp = [];
-        for (let i = 0; i < count; i++) {
-            const speed = 0.05 + Math.random() * 0.15; // Faster, varied speed
-            const x = (Math.random() - 0.5) * 15; // Wider spread
-            const z = (Math.random() - 0.5) * 8; // Depth spread
-            const y = Math.random() * topHeight;
-            const offset = Math.random() * Math.PI * 2;
-            temp.push({ speed, x, z, y, offset });
-        }
-        return temp;
-    }, [count, topHeight]);
+function createParticles(count: number, topHeight: number) {
+    const rng = seededRandom(42);
+    const temp = [];
+    for (let i = 0; i < count; i++) {
+        const speed = 0.05 + rng() * 0.15;
+        const x = (rng() - 0.5) * 15;
+        const z = (rng() - 0.5) * 8;
+        const y = rng() * topHeight;
+        const offset = rng() * Math.PI * 2;
+        temp.push({ speed, x, z, y, offset });
+    }
+    return temp;
+}
+
+export default function ParticleFlow({ topHeight }: { topHeight: number }) {
+    const count = 300;
+    const mesh = useRef<THREE.InstancedMesh>(null);
+
+    const [particles] = useState(() => createParticles(count, topHeight));
 
     const dummy = useMemo(() => new THREE.Object3D(), []);
 
@@ -37,7 +47,7 @@ export default function ParticleFlow({ topHeight }: { topHeight: number }) {
             // Loop functionality
             if (particle.y > topHeight) {
                 particle.y = 0;
-                particle.x = (Math.random() - 0.5) * 15; // Reset X to keep it dynamic
+                particle.x = (particle.offset / Math.PI - 1) * 7.5; // Deterministic reset
             }
 
             // Wiggle effect (Cyberpunk noise)

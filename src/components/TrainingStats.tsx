@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, useSpring, useTransform } from 'framer-motion';
 import type { TrainingStatus } from './Playground';
 
@@ -45,19 +45,40 @@ function StatCard({ label, children, color = 'text-text' }: { label: string; chi
 
 export function TrainingStats({ currentStep, totalSteps, currentLoss, paramCount, vocabSize, startTime, status }: TrainingStatsProps) {
   const isActive = status === 'training' || status === 'complete';
-  const elapsed = startTime ? (Date.now() - startTime) / 1000 : 0;
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync time on status change
+    setNow(Date.now());
+    if (status === 'training') {
+      const id = setInterval(() => setNow(Date.now()), 500);
+      return () => clearInterval(id);
+    }
+  }, [status]);
+
+  const elapsed = startTime ? (now - startTime) / 1000 : 0;
   const speed = elapsed > 0 && currentStep > 0 ? currentStep / elapsed : 0;
   const remaining = speed > 0 ? (totalSteps - currentStep) / speed : 0;
 
   const lossColor = currentLoss < 1.0 ? 'text-green-400' : currentLoss < 3.0 ? 'text-amber' : 'text-red-400';
 
-  if (!isActive && status !== 'initializing') return null;
+  if (!isActive && status !== 'initializing') {
+    return (
+      <div className="flex flex-wrap gap-2 opacity-40">
+        <div className="flex-1 min-w-[80px] bg-bg rounded-lg p-2.5 border border-dashed border-border">
+          <div className="text-[10px] text-muted mb-0.5">Status</div>
+          <div className="text-sm font-mono text-muted">Train a model to see live stats</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-wrap gap-2"
+      aria-live="polite"
     >
       <StatCard label="Step">
         <AnimatedNumber value={currentStep} /> / {totalSteps}

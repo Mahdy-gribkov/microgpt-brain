@@ -27,14 +27,15 @@ export default function InputBar({ onProcess, isProcessing }: InputBarProps) {
             className="w-full"
         >
             <form onSubmit={handleSubmit} className="flex gap-0 relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-purple-500/20 rounded-xl blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-amber-700/20 rounded-xl blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
 
                 <div className="relative flex w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden p-1 shadow-2xl">
                     <input
                         type="text"
                         value={text}
                         onChange={(e) => setText(e.target.value)}
-                        className="flex-1 bg-transparent border-none text-white placeholder:text-white/20 focus:scale-[1.01] focus:ring-0 px-6 py-4 text-lg font-mono transition-all outline-none"
+                        aria-label="Text prompt for inference visualization"
+                        className="flex-1 bg-transparent border-none text-white placeholder:text-white/20 focus:scale-[1.01] focus:ring-0 px-6 py-4 text-lg font-mono transition-all outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
                         placeholder="Type a prompt to visualize..."
                         disabled={isProcessing}
                     />

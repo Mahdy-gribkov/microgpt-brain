@@ -2,6 +2,7 @@ import { SCENE_CONFIG } from "@/lib/visualizer-constants";
 import TokenCube from "./TokenCube";
 import { InferenceTrace, InspectorData } from "@/lib/visualizer-types";
 import * as THREE from "three";
+import { useMemo } from "react";
 
 interface EmbeddingLayerProps {
     trace: InferenceTrace | null;
@@ -10,6 +11,12 @@ interface EmbeddingLayerProps {
 }
 
 export default function EmbeddingLayer({ trace, activeStep, onInspect }: EmbeddingLayerProps) {
+    const edgesGeo = useMemo(() => {
+        if (!trace) return null;
+        const tw = (trace.inputTokens.length - 1) * SCENE_CONFIG.TOKEN_SPACING;
+        return new THREE.PlaneGeometry(tw + 4, 4);
+    }, [trace]);
+
     if (!trace) return null;
 
     const tokens = trace.inputTokens;
@@ -20,7 +27,7 @@ export default function EmbeddingLayer({ trace, activeStep, onInspect }: Embeddi
     // Layer is active if we are at step 0 or higher
     const isLayerActive = activeStep >= 0;
 
-    const handleInspect = (e: any) => {
+    const handleInspect = (e: THREE.Event & { stopPropagation: () => void }) => {
         e.stopPropagation();
         onInspect?.({
             title: "Embedding Layer",
@@ -58,7 +65,7 @@ export default function EmbeddingLayer({ trace, activeStep, onInspect }: Embeddi
                 <planeGeometry args={[totalWidth + 4, 4]} />
                 <meshStandardMaterial color={SCENE_CONFIG.COLORS.background} transparent opacity={0.5} />
                 <lineSegments>
-                    <edgesGeometry args={[new THREE.PlaneGeometry(totalWidth + 4, 4)] as any} />
+                    <edgesGeometry args={[edgesGeo!]} />
                     <lineBasicMaterial color={SCENE_CONFIG.COLORS.glass} transparent opacity={0.1} />
                 </lineSegments>
             </mesh>

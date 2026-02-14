@@ -88,6 +88,7 @@ export function GeneratePanel({ onGenerate, generatedText, isGenerating, disable
             value={temperature}
             onChange={(e) => setTemperature(Number(e.target.value))}
             disabled={disabled}
+            aria-label="Temperature"
             className="flex-1 accent-amber h-1.5"
           />
           <span className="text-xs font-mono text-amber w-14 text-right">
@@ -109,6 +110,7 @@ export function GeneratePanel({ onGenerate, generatedText, isGenerating, disable
             value={maxTokens}
             onChange={(e) => setMaxTokens(Number(e.target.value))}
             disabled={disabled}
+            aria-label="Maximum tokens to generate"
             className="flex-1 accent-amber h-1.5"
           />
           <span className="text-xs font-mono text-amber w-14 text-right">
@@ -141,8 +143,10 @@ export function GeneratePanel({ onGenerate, generatedText, isGenerating, disable
           </pre>
           {generatedText && !isGenerating && (
             <button
+              type="button"
               onClick={handleCopy}
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-muted hover:text-amber px-2 py-1 rounded border border-border hover:border-amber/50"
+              aria-label="Copy generated text"
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-muted hover:text-amber px-2 py-1 rounded border border-border hover:border-amber/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
             >
               {copied ? 'Copied!' : 'Copy'}
             </button>

@@ -6,6 +6,7 @@ import EmbeddingLayer from "./EmbeddingLayer";
 import TransformerBlock from "./TransformerBlock";
 import OutputLayer from "./OutputLayer";
 import ParticleFlow from "./ParticleFlow";
+import { Text } from "@react-three/drei";
 import * as THREE from "three";
 
 interface TransformerSceneProps {
@@ -14,14 +15,18 @@ interface TransformerSceneProps {
     onInspect?: (data: InspectorData) => void;
 }
 
-export default function TransformerScene({ trace, processing, onInspect }: TransformerSceneProps) {
+export default function TransformerScene({ trace, onInspect }: TransformerSceneProps) {
     const groupRef = useRef<THREE.Group>(null);
-    const [step, setStep] = useState(0);
     const startTime = useRef(0);
+    const lastFlooredStep = useRef(0);
+    const [step, setStep] = useState(0);
 
+    // Reset timer when trace changes
     useEffect(() => {
         if (trace) {
             startTime.current = Date.now();
+            lastFlooredStep.current = 0;
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- reset step on trace change is intentional
             setStep(0);
         }
     }, [trace]);
@@ -31,24 +36,52 @@ export default function TransformerScene({ trace, processing, onInspect }: Trans
 
         const elapsed = (Date.now() - startTime.current) / 1000;
         const currentStep = elapsed * 2; // 2 steps per second
-        setStep(currentStep);
 
-        // Camera rotation or scene rotation
+        // Only trigger React re-render when step crosses an integer boundary
+        const flooredStep = Math.floor(currentStep);
+        if (flooredStep !== lastFlooredStep.current) {
+            lastFlooredStep.current = flooredStep;
+            setStep(flooredStep);
+        }
+
+        // Scene rotation
         if (groupRef.current) {
             groupRef.current.rotation.y = Math.sin(elapsed * 0.1) * 0.1;
         }
     });
 
     if (!trace) {
-        // Idle state
+        // Idle state: loading indicator while weights fetch
         return (
             <group>
                 <ParticleFlow topHeight={20} />
-                <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                    <gridHelper args={[50, 50, 0x444444, 0x222222]} />
-                </mesh>
+                <Text
+                    position={[0, 8, 0]}
+                    fontSize={1.2}
+                    color={SCENE_CONFIG.COLORS.accent}
+                    anchorX="center"
+                    anchorY="middle"
+                >
+                    Loading Neural Engine...
+                </Text>
+                <Text
+                    position={[0, 6, 0]}
+                    fontSize={0.5}
+                    color="#666666"
+                    anchorX="center"
+                    anchorY="middle"
+                >
+                    Fetching pretrained weights
+                </Text>
+                {/* Ghost placeholder blocks to hint at structure */}
+                {[0, 1, 2].map((i) => (
+                    <mesh key={i} position={[0, (i + 1) * SCENE_CONFIG.LAYER_SPACING, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                        <boxGeometry args={[12, 6, 0.15]} />
+                        <meshBasicMaterial color="#1a1a1a" transparent opacity={0.3} wireframe />
+                    </mesh>
+                ))}
             </group>
-        )
+        );
     }
 
     return (

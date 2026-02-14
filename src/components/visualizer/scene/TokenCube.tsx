@@ -49,7 +49,6 @@ export default function TokenCube({ token, index, isActive, position }: TokenCub
                 color={isActive ? "white" : "gray"}
                 anchorX="center"
                 anchorY="middle"
-                font="/fonts/GeistMono-Regular.ttf" // Optional if we had custom font, but default is fine
             >
                 {token}
             </Text>

@@ -45,6 +45,7 @@ function SliderRow({ label, tooltipKey, value, range, onChange, disabled, format
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         disabled={disabled}
+        aria-label={label}
         className="flex-1 accent-amber h-1.5"
       />
       <span className="text-xs font-mono text-amber w-14 text-right">

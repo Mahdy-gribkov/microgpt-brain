@@ -38,6 +38,7 @@ export function TextInput({ value, onChange, disabled }: TextInputProps) {
         value={value}
         onChange={(e) => handleChange(e.target.value)}
         disabled={disabled}
+        aria-label="Training text input"
         placeholder="Paste any text here, or pick a sample below..."
         className="w-full h-40 md:h-48 bg-bg border border-border rounded-lg p-3 text-sm font-mono text-text resize-none focus:outline-none focus:border-amber disabled:opacity-50 transition-colors"
       />
@@ -45,11 +46,12 @@ export function TextInput({ value, onChange, disabled }: TextInputProps) {
         {SAMPLES.map((sample) => (
           <motion.button
             key={sample.label}
+            type="button"
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => handleChange(sample.data)}
             disabled={disabled}
-            className="px-3 py-1.5 text-xs rounded-full bg-bg border border-border text-muted hover:text-amber hover:border-amber disabled:opacity-50 transition-colors"
+            className="px-3 py-1.5 text-xs rounded-full bg-bg border border-border text-muted hover:text-amber hover:border-amber disabled:opacity-50 transition-colors min-h-[44px]"
           >
             {sample.label}
           </motion.button>
