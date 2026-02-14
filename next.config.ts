@@ -5,7 +5,7 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed for Three.js shader compilation
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:", // unsafe-eval for Three.js shaders, blob: for worker importScripts
       "style-src 'self' 'unsafe-inline'", // Tailwind runtime styles
       "img-src 'self' data: blob:",
       "font-src 'self'",
