@@ -10,7 +10,8 @@ import { GpuTensor } from './gpu-tensor';
 import { matmulShader } from './shaders/matmul';
 import { softmaxShader } from './shaders/softmax';
 import { reluShader, addShader, scaleShader } from './shaders/elementwise';
-import { rmsnormShader } from './shaders/rmsnorm';
+// rmsnormShader available but not used (CPU is faster for RMSNorm due to scalar readback)
+// import { rmsnormShader } from './shaders/rmsnorm';
 
 export class GpuBackend implements ComputeBackend {
   readonly name = 'webgpu' as const;
@@ -24,10 +25,10 @@ export class GpuBackend implements ComputeBackend {
   private getPipeline(key: string, code: string): GPUComputePipeline {
     let pipeline = this.pipelineCache.get(key);
     if (!pipeline) {
-      const module = this.device.createShaderModule({ code });
+      const shaderModule = this.device.createShaderModule({ code });
       pipeline = this.device.createComputePipeline({
         layout: 'auto',
-        compute: { module, entryPoint: 'main' },
+        compute: { module: shaderModule, entryPoint: 'main' },
       });
       this.pipelineCache.set(key, pipeline);
     }

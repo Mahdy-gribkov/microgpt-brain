@@ -72,6 +72,16 @@ interface StepCache {
   layers: LayerCache[];
 }
 
+/** Cross-position gradient contributions from a single backward step.
+ *  When position P attends to V/K at positions 0..P, the weight gradients
+ *  for attnWv/attnWk must be propagated through EACH position's xNorm1,
+ *  not just the current position's. This structure carries the per-position
+ *  dV and dK vectors so trainStep can do the second-pass accumulation. */
+export interface CrossPositionGrads {
+  dV: Tensor[][]; // [nLayer][seqLen] each [nEmbd]
+  dK: Tensor[][]; // [nLayer][seqLen] each [nEmbd]
+}
+
 export class MicroGPT {
   config: GPTConfig;
   wte: Tensor;      // token embedding [vocabSize, nEmbd]
@@ -186,7 +196,6 @@ export class MicroGPT {
 
       for (let h = 0; h < nHead; h++) {
         const hs = h * headDim;
-        const he = hs + headDim;
 
         // Extract head slices
         const qH = new Float32Array(headDim);
@@ -262,6 +271,12 @@ export class MicroGPT {
   /**
    * Backward pass for a single step.
    * Propagates gradient from dLogits back through the network.
+   *
+   * Returns per-position dV and dK contributions for cross-position gradient
+   * accumulation. Each backward step at position `posInSeq` attends to V/K at
+   * positions 0..posInSeq. The weight gradients for attnWv/attnWk at the current
+   * position are handled here, but contributions targeting OTHER positions must be
+   * accumulated in trainStep() and propagated through their cached xNorm1.
    */
   backward(
     dLogits: Tensor,
@@ -269,9 +284,19 @@ export class MicroGPT {
     kvKeys: Tensor[][],
     kvValues: Tensor[][],
     posInSeq: number,
-  ): void {
+  ): CrossPositionGrads {
     const { nLayer, nHead, nEmbd } = this.config;
     const headDim = nEmbd / nHead;
+    const seqLen = posInSeq + 1;
+
+    const crossGrads: CrossPositionGrads = {
+      dV: Array.from({ length: nLayer }, () =>
+        Array.from({ length: seqLen }, () => Tensor.zeros([nEmbd]))
+      ),
+      dK: Array.from({ length: nLayer }, () =>
+        Array.from({ length: seqLen }, () => Tensor.zeros([nEmbd]))
+      ),
+    };
 
     // Get the final x (output of last layer) from cache
     const lastCache = cache.layers[cache.layers.length - 1];
@@ -310,9 +335,8 @@ export class MicroGPT {
 
       // Attention output projection backward
       // attnOut = linear(xAttn, attnWo)
-      // We need to reconstruct xAttn from the attention computation
+      // Reconstruct xAttn from the attention computation
       const xAttnParts = new Float32Array(nEmbd);
-      const seqLen = posInSeq + 1; // kvKeys[li] has this many entries at this point
 
       for (let h = 0; h < nHead; h++) {
         const hs = h * headDim;
@@ -332,12 +356,14 @@ export class MicroGPT {
       // Residual from attention
       const dXIn_attn = dXAfterAttn;
 
-      // Backward through multi-head attention to get dQ, dK, dV
+      // Backward through multi-head attention
+      // Compute per-position dV[t] and dK[t], and accumulated dQ
       const dQ = Tensor.zeros([nEmbd]);
-      const dK_acc = Tensor.zeros([nEmbd]);
-      const dV_acc = Tensor.zeros([nEmbd]);
-
       const scaleFactor = 1 / Math.sqrt(headDim);
+
+      // Per-position dV and dK for this layer
+      const layerDV = crossGrads.dV[li]; // already initialized as zeros
+      const layerDK = crossGrads.dK[li];
 
       for (let h = 0; h < nHead; h++) {
         const hs = h * headDim;
@@ -352,10 +378,10 @@ export class MicroGPT {
           dWeights[t] = sum;
         }
 
-        // Step 2: dV[t][hs+d] += attnWeights[h][t] * dAttnOut[hs+d]
+        // Step 2: dV[t][hs+d] = attnWeights[h][t] * dAttnOut[hs+d] (per position)
         for (let t = 0; t < seqLen; t++) {
           for (let d = 0; d < headDim; d++) {
-            dV_acc.data[hs + d] += lc.attnWeights[h].data[t] * dAttnOut_x.data[hs + d];
+            layerDV[t].data[hs + d] += lc.attnWeights[h].data[t] * dAttnOut_x.data[hs + d];
           }
         }
 
@@ -370,22 +396,27 @@ export class MicroGPT {
           }
         }
 
-        // Step 5: dK[t][hs+d] += dScores[t] * Q[hs+d] * scaleFactor
-        // Note: we accumulate dK for the current position only (t = posInSeq)
-        // since K at other positions were computed in earlier forward steps
-        for (let d = 0; d < headDim; d++) {
-          dK_acc.data[hs + d] += dScores.data[posInSeq] * lc.q.data[hs + d] * scaleFactor;
+        // Step 5: dK[t][hs+d] = dScores[t] * Q[hs+d] * scaleFactor (per position)
+        for (let t = 0; t < seqLen; t++) {
+          for (let d = 0; d < headDim; d++) {
+            layerDK[t].data[hs + d] += dScores.data[t] * lc.q.data[hs + d] * scaleFactor;
+          }
         }
       }
 
-      // Backprop through Q, K, V projections
+      // Backprop through Q projection (Q is always from the current position)
       const { dX: dXN1_q, dW: dW_wq } = linearBackward(dQ, lc.xNorm1, layer.attnWq);
       for (let i = 0; i < dW_wq.size; i++) layer.attnWq.grad!.data[i] += dW_wq.data[i];
 
-      const { dX: dXN1_k, dW: dW_wk } = linearBackward(dK_acc, lc.xNorm1, layer.attnWk);
+      // Backprop through K, V projections for CURRENT POSITION ONLY
+      // (cross-position contributions are accumulated in trainStep's second pass)
+      const dK_current = layerDK[posInSeq];
+      const dV_current = layerDV[posInSeq];
+
+      const { dX: dXN1_k, dW: dW_wk } = linearBackward(dK_current, lc.xNorm1, layer.attnWk);
       for (let i = 0; i < dW_wk.size; i++) layer.attnWk.grad!.data[i] += dW_wk.data[i];
 
-      const { dX: dXN1_v, dW: dW_wv } = linearBackward(dV_acc, lc.xNorm1, layer.attnWv);
+      const { dX: dXN1_v, dW: dW_wv } = linearBackward(dV_current, lc.xNorm1, layer.attnWv);
       for (let i = 0; i < dW_wv.size; i++) layer.attnWv.grad!.data[i] += dW_wv.data[i];
 
       // RMSNorm backward for pre-attention norm (combine Q, K, V gradients)
@@ -403,18 +434,26 @@ export class MicroGPT {
     // Embedding gradients
     embeddingBackward(dXPreNorm, this.wte, cache.tokenId);
     embeddingBackward(dXPreNorm, this.wpe, cache.posId);
+
+    return crossGrads;
   }
 }
 
 /**
  * Run a single training step on one document.
  * Returns the average loss over the sequence.
+ *
+ * Two-pass backward:
+ * 1. Per-position backward: propagates gradients for all layers except
+ *    cross-position attnWk/attnWv contributions.
+ * 2. Cross-position pass: accumulates dV[t] and dK[t] from all positions
+ *    that attended to position t, then propagates through cached xNorm1[t].
  */
 export function trainStep(
   model: MicroGPT,
   tokens: number[],
 ): number {
-  const { nLayer, blockSize } = model.config;
+  const { nLayer, nEmbd, blockSize } = model.config;
   const n = Math.min(blockSize, tokens.length - 1);
 
   // Initialize KV cache
@@ -440,10 +479,55 @@ export function trainStep(
 
   const avgLoss = losses.reduce((a, b) => a + b, 0) / n;
 
-  // Backward pass: process in reverse
+  // Pass 1: Per-position backward (handles everything except cross-position K/V weight grads)
   model.zeroGrad();
+  const allCrossGrads: CrossPositionGrads[] = [];
   for (let pos = n - 1; pos >= 0; pos--) {
-    model.backward(dLogitsList[pos], caches[pos], kvKeys, kvValues, pos);
+    const crossGrads = model.backward(dLogitsList[pos], caches[pos], kvKeys, kvValues, pos);
+    allCrossGrads[pos] = crossGrads;
+  }
+
+  // Pass 2: Accumulate cross-position V and K weight gradients.
+  // For each position t, collect dV[t] and dK[t] from all backward steps
+  // at positions pos > t (position t's own contribution was already handled).
+  for (let li = 0; li < nLayer; li++) {
+    const layer = model.layers[li];
+
+    for (let t = 0; t < n; t++) {
+      const totalDV = Tensor.zeros([nEmbd]);
+      const totalDK = Tensor.zeros([nEmbd]);
+      let hasContributions = false;
+
+      // Sum contributions from positions that attend to position t
+      for (let pos = t + 1; pos < n; pos++) {
+        const cg = allCrossGrads[pos];
+        // cg.dV[li] has entries for positions 0..pos, so index t is valid
+        if (t < cg.dV[li].length) {
+          const dv = cg.dV[li][t];
+          const dk = cg.dK[li][t];
+          for (let i = 0; i < nEmbd; i++) {
+            totalDV.data[i] += dv.data[i];
+            totalDK.data[i] += dk.data[i];
+          }
+          hasContributions = true;
+        }
+      }
+
+      if (!hasContributions) continue;
+
+      // Propagate through position t's cached xNorm1
+      const xNorm1_t = caches[t].layers[li].xNorm1;
+
+      const { dW: dW_wv } = linearBackward(totalDV, xNorm1_t, layer.attnWv);
+      for (let i = 0; i < dW_wv.size; i++) {
+        layer.attnWv.grad!.data[i] += dW_wv.data[i];
+      }
+
+      const { dW: dW_wk } = linearBackward(totalDK, xNorm1_t, layer.attnWk);
+      for (let i = 0; i < dW_wk.size; i++) {
+        layer.attnWk.grad!.data[i] += dW_wk.data[i];
+      }
+    }
   }
 
   return avgLoss;
@@ -452,17 +536,10 @@ export function trainStep(
 /** Compute parameter count for a given config */
 export function computeParamCount(config: Omit<GPTConfig, 'vocabSize'> & { vocabSize?: number }, vocabSize = 50): number {
   const vs = config.vocabSize ?? vocabSize;
-  const { blockSize, nLayer, nHead: _, nEmbd } = config;
+  const { blockSize, nLayer, nEmbd } = config;
   const embParams = vs * nEmbd + blockSize * nEmbd; // wte + wpe
-  const layerParams = nLayer * (
-    4 * nEmbd * nEmbd +  // attnWq, attnWk, attnWv, attnWo
-    4 * nEmbd * nEmbd +  // mlpFc1 (4*nEmbd x nEmbd)
-    nEmbd * 4 * nEmbd    // mlpFc2 (nEmbd x 4*nEmbd)
-  );
-  // Wait, mlpFc1 is [4*nEmbd, nEmbd] and mlpFc2 is [nEmbd, 4*nEmbd]
-  // So layerParams per layer = 4*nEmbd*nEmbd (Q) + nEmbd*nEmbd (K) + nEmbd*nEmbd (V) + nEmbd*nEmbd (O) + 4*nEmbd*nEmbd (fc1) + nEmbd*4*nEmbd (fc2)
-  // = nEmbd*nEmbd * (1+1+1+1+4+4) = nEmbd*nEmbd * 12
-  const correctedLayerParams = nLayer * 12 * nEmbd * nEmbd;
+  // Per layer: Q[E,E] + K[E,E] + V[E,E] + O[E,E] + fc1[4E,E] + fc2[E,4E] = 12*E*E
+  const totalLayerParams = nLayer * 12 * nEmbd * nEmbd;
   const lmHeadParams = vs * nEmbd;
-  return embParams + correctedLayerParams + lmHeadParams;
+  return embParams + totalLayerParams + lmHeadParams;
 }

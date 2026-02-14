@@ -81,7 +81,6 @@ export function runInference(
     // 4. Transformer Blocks
     for (let i = 0; i < config.n_layer; i++) {
         const blockWeights = weights.blocks[i];
-        const layerInput = x;
 
         // --- RMSNorm 1 ---
         const preNorm1 = rmsNorm(x, blockWeights.ln1_weight);
@@ -122,12 +121,12 @@ export function runInference(
             }
 
             // Softmax
-            const weights = softmax2D(scores);
-            scoresHeads.push(weights);
+            const attnWeights = softmax2D(scores);
+            scoresHeads.push(attnWeights);
 
-            // Weighted Sum: weights @ v
+            // Weighted Sum: attnWeights @ v
             // (seq, seq) @ (seq, headSize) -> (seq, headSize)
-            const out = matMul(weights, v);
+            const out = matMul(attnWeights, v);
             headOutputs.push(out);
         }
 

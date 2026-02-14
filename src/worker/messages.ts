@@ -58,9 +58,16 @@ export interface GpuStatusMessage {
   backend: 'cpu' | 'webgpu';
 }
 
+export interface WeightsSnapshotMessage {
+  type: 'weights-snapshot';
+  weights: import('../lib/visualizer-types').ModelWeights;
+  config: import('../lib/visualizer-types').ModelConfig;
+  step: number;
+}
+
 export interface InitGpuRequest {
   type: 'init_gpu';
 }
 
 export type WorkerRequest = TrainRequest | GenerateRequest | StopRequest | InitGpuRequest;
-export type WorkerResponse = TrainProgress | TrainComplete | GenerateResult | ErrorMessage | ReadyMessage | TimeoutMessage | GpuStatusMessage;
+export type WorkerResponse = TrainProgress | TrainComplete | GenerateResult | ErrorMessage | ReadyMessage | TimeoutMessage | GpuStatusMessage | WeightsSnapshotMessage;

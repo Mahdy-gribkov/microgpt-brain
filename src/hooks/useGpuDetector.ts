@@ -34,7 +34,7 @@ export function useGpuDetector() {
                     return;
                 }
 
-                // @ts-ignore - requestAdapterInfo is not yet in all type definitions
+                // @ts-expect-error - requestAdapterInfo is not yet in all type definitions
                 const info = await adapter.requestAdapterInfo();
                 if (mounted) {
                     setAvailable(true);

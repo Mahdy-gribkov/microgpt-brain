@@ -2,14 +2,15 @@ import { MicroGPT, trainStep } from '../engine/model';
 import { CharTokenizer } from '../engine/tokenizer';
 import { AdamOptimizer } from '../engine/optimizer';
 import { generate } from '../engine/generate';
+import { extractWeights, extractModelConfig } from '../engine/weight-bridge';
 import { SECURITY_LIMITS } from '../lib/constants';
+import { sanitizeText, estimateMemoryMB } from '../lib/sanitize';
 import { initGpu } from '../gpu/device';
-import type { WorkerRequest, TrainProgress, TrainComplete, GenerateResult, ErrorMessage, ReadyMessage, TimeoutMessage, GpuStatusMessage } from './messages';
+import type { WorkerRequest, TrainProgress, TrainComplete, GenerateResult, ErrorMessage, ReadyMessage, TimeoutMessage, GpuStatusMessage, WeightsSnapshotMessage } from './messages';
 
 let model: MicroGPT | null = null;
 let tokenizer: CharTokenizer | null = null;
 let stopRequested = false;
-let gpuDetected = false;
 
 // Safe initialization: Do not run async code at top level.
 // Wait for 'init_gpu' message or initialize lazily.
@@ -18,7 +19,6 @@ async function handleInitGpu() {
   try {
     const ctx = await initGpu();
     if (ctx) {
-      gpuDetected = true;
       const msg: GpuStatusMessage = {
         type: 'gpu-status',
         available: true,
@@ -30,7 +30,7 @@ async function handleInitGpu() {
     } else {
       throw new Error("GPU context null");
     }
-  } catch (e) {
+  } catch {
     const msg: GpuStatusMessage = {
       type: 'gpu-status',
       available: false,
@@ -41,11 +41,12 @@ async function handleInitGpu() {
   }
 }
 
+const MAX_MEMORY_MB = 500;
+const MAX_TRAINING_TIME_MS = 5 * 60 * 1000; // 5 minutes
+
 function validateTrainInput(msg: Extract<WorkerRequest, { type: 'train' }>) {
-  if (typeof msg.text !== 'string') throw new Error('Invalid input: text must be a string');
-  if (msg.text.length > SECURITY_LIMITS.maxInputTextLength) {
-    throw new Error(`Input text too long: ${msg.text.length} > ${SECURITY_LIMITS.maxInputTextLength}`);
-  }
+  // Sanitize and validate text
+  sanitizeText(msg.text);
 
   const { nLayer, nHead, nEmbd } = msg.modelConfig;
   if (nLayer < 1 || nLayer > 8) throw new Error(`nLayer must be 1-8, got ${nLayer}`);
@@ -53,13 +54,27 @@ function validateTrainInput(msg: Extract<WorkerRequest, { type: 'train' }>) {
   if (nEmbd < 16 || nEmbd > 256) throw new Error(`nEmbd must be 16-256, got ${nEmbd}`);
   if (nEmbd % nHead !== 0) throw new Error(`nEmbd (${nEmbd}) must be divisible by nHead (${nHead})`);
 
+  // Memory estimation check
+  const memMB = estimateMemoryMB({ nLayer, nEmbd });
+  if (memMB > MAX_MEMORY_MB) {
+    throw new Error(`Estimated memory ${memMB.toFixed(0)}MB exceeds limit of ${MAX_MEMORY_MB}MB`);
+  }
+
   const { lr, maxSteps } = msg.adamConfig;
   if (lr <= 0 || lr > 0.05) throw new Error(`lr must be (0, 0.05], got ${lr}`);
   if (maxSteps < 1 || maxSteps > 2000) throw new Error(`maxSteps must be 1-2000, got ${maxSteps}`);
 }
 
-self.onmessage = async (e: MessageEvent<any>) => {
+const VALID_MESSAGE_TYPES = new Set(['init_gpu', 'train', 'generate', 'stop']);
+
+self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   const msg = e.data;
+
+  if (!msg || typeof msg.type !== 'string' || !VALID_MESSAGE_TYPES.has(msg.type)) {
+    const error: ErrorMessage = { type: 'error', message: `Unknown message type: ${String(msg?.type)}` };
+    self.postMessage(error);
+    return;
+  }
 
   switch (msg.type) {
     case 'init_gpu':
@@ -96,13 +111,22 @@ async function handleTrain(msg: Extract<WorkerRequest, { type: 'train' }>) {
     const optimizer = new AdamOptimizer(model.parameters(), msg.adamConfig);
     const tokens = tokenizer.encodeDoc(msg.text);
     const { maxSteps } = msg.adamConfig;
+    const trainingStart = performance.now();
+    const PROGRESS_INTERVAL = 10; // Only post every Nth step to reduce message overhead
+    const WEIGHTS_SNAPSHOT_INTERVAL = 50; // Post weight snapshots for live visualizer
 
     for (let step = 0; step < maxSteps; step++) {
       if (stopRequested) break;
 
+      // Total training time limit
+      if (performance.now() - trainingStart > MAX_TRAINING_TIME_MS) {
+        const timeout: TimeoutMessage = { type: 'timeout', step: step + 1 };
+        self.postMessage(timeout);
+        return;
+      }
+
       const stepStart = performance.now();
 
-      model.zeroGrad();
       const loss = trainStep(model, tokens);
       optimizer.step(model.parameters());
 
@@ -113,19 +137,42 @@ async function handleTrain(msg: Extract<WorkerRequest, { type: 'train' }>) {
         return;
       }
 
-      const progress: TrainProgress = {
-        type: 'progress',
-        step: step + 1,
-        loss,
-        totalSteps: maxSteps,
-      };
-      self.postMessage(progress);
+      // Throttle progress messages to every PROGRESS_INTERVAL steps + last step
+      if (step % PROGRESS_INTERVAL === 0 || step === maxSteps - 1) {
+        const progress: TrainProgress = {
+          type: 'progress',
+          step: step + 1,
+          loss,
+          totalSteps: maxSteps,
+        };
+        self.postMessage(progress);
+      }
+
+      // Post weight snapshots for live visualizer
+      if (step % WEIGHTS_SNAPSHOT_INTERVAL === 0 || step === maxSteps - 1) {
+        const snapshot: WeightsSnapshotMessage = {
+          type: 'weights-snapshot',
+          weights: extractWeights(model),
+          config: extractModelConfig(model.config, tokenizer),
+          step: step + 1,
+        };
+        self.postMessage(snapshot);
+      }
 
       // Yield to allow stop messages to be processed
       if (step % 10 === 0) {
         await new Promise((r) => setTimeout(r, 0));
       }
     }
+
+    // Final snapshot
+    const finalSnapshot: WeightsSnapshotMessage = {
+      type: 'weights-snapshot',
+      weights: extractWeights(model),
+      config: extractModelConfig(model.config, tokenizer),
+      step: maxSteps,
+    };
+    self.postMessage(finalSnapshot);
 
     const complete: TrainComplete = {
       type: 'complete',
