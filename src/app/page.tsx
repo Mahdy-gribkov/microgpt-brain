@@ -1,52 +1,30 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { GrainOverlay } from '../components/GrainOverlay';
+import { useRouter } from 'next/navigation';
 import { HeroSection } from '../components/HeroSection';
-import { useGpuDetector } from '../hooks/useGpuDetector';
-import { Playground } from '../components/Playground';
 import { InspirationSection } from '../components/InspirationSection';
 import { RichFooter } from '../components/RichFooter';
-import VisualizerSection from '../components/VisualizerSection';
-import { TrainingBridgeProvider } from '../contexts/TrainingContext';
 import { OnboardingOverlay } from '../components/OnboardingOverlay';
+import { useGpuDetector } from '../hooks/useGpuDetector';
 
 export default function Home() {
-  const playgroundRef = useRef<HTMLDivElement>(null);
-  const visualizerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const { available: gpuAvailable, gpuName } = useGpuDetector();
-  const [startTour, setStartTour] = useState(false);
 
-  const scrollToPlayground = () => {
-    playgroundRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleStartTour = () => {
-    setStartTour(true);
-    visualizerRef.current?.scrollIntoView({ behavior: 'smooth' });
-    // Reset after a delay so it can be triggered again if needed, 
-    // though the tour component handles its own internal state once started.
-    setTimeout(() => setStartTour(false), 1000);
-  };
+  const goToPlayground = () => router.push('/playground');
+  const goToTour = () => router.push('/visualizer?tour=true');
 
   return (
-    <TrainingBridgeProvider>
-      <OnboardingOverlay onStartTraining={scrollToPlayground} onStartTour={handleStartTour} />
-      <GrainOverlay />
+    <main className="pt-14">
+      <OnboardingOverlay onStartTraining={goToPlayground} onStartTour={goToTour} />
       <HeroSection
-        onScrollToPlayground={scrollToPlayground}
-        onStartTour={handleStartTour}
+        onScrollToPlayground={goToPlayground}
+        onStartTour={goToTour}
         gpuAvailable={gpuAvailable}
         gpuName={gpuName}
       />
-      <div ref={playgroundRef}>
-        <Playground />
-      </div>
-      <div ref={visualizerRef}>
-        <VisualizerSection startTour={startTour} />
-      </div>
       <InspirationSection />
       <RichFooter />
-    </TrainingBridgeProvider>
+    </main>
   );
 }

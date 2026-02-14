@@ -13,36 +13,35 @@ import { ArchitectureDiagram } from './ArchitectureDiagram';
 import { EducationSidebar } from './EducationSidebar';
 import { ChallengeCards } from './ChallengeCards';
 import { ToastContainer } from './ToastContainer';
-import { useGpuDetector } from '../hooks/useGpuDetector';
 import { useToasts } from '../hooks/useToasts';
 import { useModelConfig } from '../hooks/useModelConfig';
-import { useTrainingWorker } from '../hooks/useTrainingWorker';
-import { useTrainingBridge } from '../contexts/TrainingContext';
+import { useTrainingBridge, type TrainingStatus } from '../contexts/TrainingContext';
 
-export type { TrainingStatus } from '../hooks/useTrainingWorker';
+export type { TrainingStatus };
 
 export function Playground() {
   const [text, setText] = useState('');
   const [educationOpen, setEducationOpen] = useState(false);
-  useGpuDetector();
 
   const { toasts, addToast, dismissToast } = useToasts();
   const { config, activePreset, handlePresetSelect, updateConfig } = useModelConfig();
-  const bridge = useTrainingBridge();
   const {
     status, currentStep, currentLoss, lossHistory,
     paramCount, vocabSize, generatedText, isGenerating,
-    trainingStartTime, train, stop, reset, generate, exportLoss,
-  } = useTrainingWorker(addToast, bridge.updateSnapshot);
+    trainingStartTime, lastError, train, stop, reset, generate, exportLoss,
+  } = useTrainingBridge();
 
-  // Sync training status to bridge context
+  // Show errors as toasts
   useEffect(() => {
-    bridge.setIsTraining(status === 'training' || status === 'initializing');
-  }, [status, bridge]);
+    if (lastError) {
+      addToast(lastError, 'error');
+    }
+  }, [lastError, addToast]);
 
   const handleTrain = useCallback(() => {
-    train(text, config);
-  }, [train, text, config]);
+    const err = train(text, config);
+    if (err) addToast(err, 'error');
+  }, [train, text, config, addToast]);
 
   const handleCopyText = useCallback(() => {
     addToast('Text copied to clipboard', 'success');

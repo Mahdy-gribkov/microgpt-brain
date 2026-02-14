@@ -12,16 +12,19 @@ import { useTrainingBridge } from "@/contexts/TrainingContext";
 
 interface VisualizerSectionProps {
     startTour?: boolean;
+    /** When true, skip useInView check and render canvas immediately (dedicated route) */
+    forceMount?: boolean;
 }
 
 type WeightSource = 'demo' | 'live';
 
 const DEFAULT_INPUT = "The cat sat on";
 
-export default function VisualizerSection({ startTour }: VisualizerSectionProps) {
+export default function VisualizerSection({ startTour, forceMount }: VisualizerSectionProps) {
     const sectionRef = useRef<HTMLDivElement>(null);
     // Track current visibility (canvas mounts/unmounts with scroll)
     const isInView = useInView(sectionRef, { margin: "-50px" });
+    const shouldMount = forceMount || isInView;
 
     // Demo (pretrained) weights
     const [demoWeights, setDemoWeights] = useState<ModelWeights | null>(null);
@@ -54,7 +57,7 @@ export default function VisualizerSection({ startTour }: VisualizerSectionProps)
 
     // Load demo weights only when in view
     useEffect(() => {
-        if (isInView && !hasLoaded) {
+        if (shouldMount && !hasLoaded) {
             // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot load guard
             setHasLoaded(true);
             fetch("/pretrained-weights.json")
@@ -65,7 +68,7 @@ export default function VisualizerSection({ startTour }: VisualizerSectionProps)
                 })
                 .catch((err: unknown) => console.error("Failed to load visualizer weights:", err));
         }
-    }, [isInView, hasLoaded]);
+    }, [shouldMount, hasLoaded]);
 
     // Auto-run inference with default text when demo weights first load
     const hasAutoRun = useRef(false);
@@ -149,7 +152,7 @@ export default function VisualizerSection({ startTour }: VisualizerSectionProps)
     }, [weights, modelConfig]);
 
     return (
-        <section ref={sectionRef} className="relative w-full h-[600px] md:h-[900px] border-y border-white/5 overflow-hidden">
+        <section ref={sectionRef} className={`relative w-full overflow-hidden ${forceMount ? 'h-full' : 'h-[600px] md:h-[900px] border-y border-white/5'}`}>
             {/* Ambient Background Glow */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-amber-900/10 via-transparent to-transparent opacity-50 pointer-events-none" />
 
@@ -190,7 +193,7 @@ export default function VisualizerSection({ startTour }: VisualizerSectionProps)
                 )}
             </div>
 
-            {isInView ? (
+            {shouldMount ? (
                 <>
                     <div className="absolute inset-0 z-0">
                         <Visualizer trace={trace} processing={isProcessing} startTour={startTour} />
