@@ -31,7 +31,7 @@ export default function TransformerScene({ trace, onInspect }: TransformerSceneP
         }
     }, [trace]);
 
-    useFrame(() => {
+    useFrame((state) => {
         if (!trace) return;
 
         const elapsed = (Date.now() - startTime.current) / 1000;
@@ -48,6 +48,9 @@ export default function TransformerScene({ trace, onInspect }: TransformerSceneP
         if (groupRef.current) {
             groupRef.current.rotation.y = Math.sin(elapsed * 0.1) * 0.1;
         }
+
+        // Request next frame for demand mode
+        state.invalidate();
     });
 
     if (!trace) {

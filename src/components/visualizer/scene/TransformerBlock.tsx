@@ -3,7 +3,6 @@ import AttentionViz from "./AttentionViz";
 import { Text, Line } from "@react-three/drei";
 import * as THREE from "three";
 import { TraceLayer, InspectorData } from "@/lib/visualizer-types";
-import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 
 interface TransformerBlockProps {
@@ -17,17 +16,6 @@ interface TransformerBlockProps {
 export default function TransformerBlock({ layerIndex, trace, numTokens, activeStep, onInspect }: TransformerBlockProps) {
     const isActive = activeStep >= layerIndex * 2 + 1;
     const isHovered = useRef(false);
-    const meshRef = useRef<THREE.Mesh>(null);
-
-    // Pulse effect
-    useFrame((state) => {
-        if (meshRef.current && isActive) {
-            const time = state.clock.getElapsedTime();
-            const pulse = (Math.sin(time * 4) + 1) * 0.5; // 0 to 1
-            const material = meshRef.current.material as THREE.MeshStandardMaterial;
-            material.emissiveIntensity = 0.5 + pulse * 1.5; // Pulse between 0.5 and 2.0
-        }
-    });
 
     const totalWidth = (numTokens - 1) * SCENE_CONFIG.TOKEN_SPACING;
 
@@ -79,7 +67,6 @@ export default function TransformerBlock({ layerIndex, trace, numTokens, activeS
 
             {/* Glass Platform with Neuron Grid */}
             <mesh
-                ref={meshRef}
                 rotation={[-Math.PI / 2, 0, 0]}
                 onClick={handleInspect}
                 onPointerOver={() => { document.body.style.cursor = 'pointer'; isHovered.current = true; }}
@@ -93,7 +80,7 @@ export default function TransformerBlock({ layerIndex, trace, numTokens, activeS
                     transparent
                     opacity={0.6}
                     emissive={isActive ? SCENE_CONFIG.COLORS.accent : "#000"}
-                    emissiveIntensity={0.2}
+                    emissiveIntensity={isActive ? 1.0 : 0.2}
                 />
             </mesh>
 

@@ -27,47 +27,50 @@ function createParticles(count: number, topHeight: number) {
 }
 
 export default function ParticleFlow({ topHeight }: { topHeight: number }) {
-    const count = 300;
+    const count = 100;
     const mesh = useRef<THREE.InstancedMesh>(null);
+    const frameCount = useRef(0);
 
     const [particles] = useState(() => createParticles(count, topHeight));
 
     const dummy = useMemo(() => new THREE.Object3D(), []);
 
     useFrame((state) => {
+        // Only update every 3rd frame (~20fps instead of 60fps)
+        frameCount.current += 1;
+        if (frameCount.current % 3 !== 0) return;
+
         const currentMesh = mesh.current;
         if (!currentMesh) return;
 
         const time = state.clock.getElapsedTime();
+        state.invalidate(); // Request next frame for demand mode
 
-        particles.forEach((particle, i) => {
-            // Move up
-            particle.y += particle.speed;
+        for (const [i, particle] of particles.entries()) {
+            // Move up (3x speed to compensate for skipped frames)
+            particle.y += particle.speed * 3;
 
             // Loop functionality
             if (particle.y > topHeight) {
                 particle.y = 0;
-                particle.x = (particle.offset / Math.PI - 1) * 7.5; // Deterministic reset
+                particle.x = (particle.offset / Math.PI - 1) * 7.5;
             }
 
-            // Wiggle effect (Cyberpunk noise)
             const wiggleX = Math.sin(time * 2 + particle.offset) * 0.2;
-
             dummy.position.set(particle.x + wiggleX, particle.y, particle.z);
 
-            // Scale based on speed (stretch effect)
             const stretch = 1 + particle.speed * 10;
             dummy.scale.set(0.05, stretch * 0.2, 0.05);
 
             dummy.updateMatrix();
             currentMesh.setMatrixAt(i, dummy.matrix);
-        });
+        }
         currentMesh.instanceMatrix.needsUpdate = true;
     });
 
     return (
         <group>
-            <instancedMesh ref={mesh} args={[undefined, undefined, count]}>
+            <instancedMesh ref={mesh} args={[undefined, undefined, 100]}>
                 <boxGeometry args={[1, 1, 1]} />
                 <meshBasicMaterial
                     color={SCENE_CONFIG.COLORS.accent}

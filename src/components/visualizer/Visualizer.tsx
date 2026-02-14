@@ -4,7 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { useState, Suspense } from "react";
 import TransformerScene from "./scene/TransformerScene";
-import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
+import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { SCENE_CONFIG } from "@/lib/visualizer-constants";
 import { InferenceTrace } from "@/lib/visualizer-types";
 import GuidedTour from "./education/GuidedTour";
@@ -28,7 +28,7 @@ export default function Visualizer({ trace, processing, startTour = false }: Vis
 
     return (
         <div className="w-full h-screen bg-bg relative" role="img" aria-label="3D Neural Network Visualizer">
-            <Canvas dpr={[1, 1.5]}>
+            <Canvas dpr={[1, 1.5]} frameloop="demand">
                 <PerspectiveCamera makeDefault position={[0, 10, 30]} fov={50} />
                 <OrbitControls
                     target={[0, 8, 0]}
@@ -39,8 +39,6 @@ export default function Visualizer({ trace, processing, startTour = false }: Vis
 
                 <ambientLight intensity={1.5} />
                 <pointLight position={[10, 10, 10]} intensity={2} color={SCENE_CONFIG.COLORS.accent} />
-                <pointLight position={[-10, 10, -10]} intensity={1} color="#4444ff" />
-                <spotLight position={[0, 50, 0]} angle={0.5} penumbra={1} intensity={2} />
 
                 <Suspense fallback={null}>
                     <TransformerScene
@@ -53,8 +51,7 @@ export default function Visualizer({ trace, processing, startTour = false }: Vis
                 <GuidedTour isActive={isTourActive} onEnd={() => setIsTourActive(false)} />
 
                 <EffectComposer enableNormalPass={false}>
-                    <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.9} height={300} intensity={0.8} levels={4} />
-                    <Vignette eskil={false} offset={0.1} darkness={1.1} />
+                    <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.9} height={200} intensity={0.6} levels={2} />
                 </EffectComposer>
             </Canvas>
 
