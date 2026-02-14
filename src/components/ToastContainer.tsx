@@ -45,7 +45,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         {toast.type === 'error' ? '!' : toast.type === 'success' ? '\u2713' : '\u2139'}
       </span>
       <p className="text-xs text-text flex-1">{toast.message}</p>
-      <button onClick={onDismiss} className="text-muted hover:text-text text-xs shrink-0">&times;</button>
+      <button type="button" onClick={onDismiss} aria-label="Dismiss notification" className="text-muted hover:text-text text-xs shrink-0">&times;</button>
     </motion.div>
   );
 }

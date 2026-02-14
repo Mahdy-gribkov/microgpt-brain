@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { THEME } from '../lib/constants';
 
@@ -8,7 +9,7 @@ interface LossChartProps {
   onExport?: () => void;
 }
 
-export function LossChart({ data, onExport }: LossChartProps) {
+export const LossChart = memo(function LossChart({ data, onExport }: LossChartProps) {
   const displayData = data.length > 200
     ? data.filter((_, i) => i % Math.ceil(data.length / 200) === 0 || i === data.length - 1)
     : data;
@@ -21,8 +22,10 @@ export function LossChart({ data, onExport }: LossChartProps) {
         <h2 className="text-sm font-medium text-text">Training Loss</h2>
         {onExport && data.length > 0 && (
           <button
+            type="button"
             onClick={onExport}
-            className="text-[10px] text-muted hover:text-amber transition-colors px-2 py-0.5 rounded border border-border hover:border-amber/50"
+            aria-label="Export loss data as CSV"
+            className="text-[10px] text-muted hover:text-amber transition-colors px-2 py-0.5 rounded border border-border hover:border-amber/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
           >
             Export CSV
           </button>
@@ -78,4 +81,4 @@ export function LossChart({ data, onExport }: LossChartProps) {
       </div>
     </div>
   );
-}
+});

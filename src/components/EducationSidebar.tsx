@@ -43,6 +43,7 @@ function CollapsibleSection({ section }: { section: SectionData }) {
   return (
     <div className="border-b border-border last:border-b-0">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between py-3 text-left text-sm font-medium text-text hover:text-amber transition-colors"
       >
@@ -79,8 +80,10 @@ export function EducationSidebar({ isOpen, onToggle }: EducationSidebarProps) {
     <>
       {/* Toggle button */}
       <button
+        type="button"
         onClick={onToggle}
-        className="px-3 py-1.5 text-xs rounded-full border border-border text-muted hover:text-amber hover:border-amber transition-colors"
+        aria-label={isOpen ? 'Hide learning sidebar' : 'Show learning sidebar'}
+        className="px-3 py-1.5 text-xs rounded-full border border-border text-muted hover:text-amber hover:border-amber transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
       >
         {isOpen ? 'Hide' : '(?) Learn'}
       </button>

@@ -8,6 +8,8 @@ import { Playground } from '../components/Playground';
 import { InspirationSection } from '../components/InspirationSection';
 import { RichFooter } from '../components/RichFooter';
 import VisualizerSection from '../components/VisualizerSection';
+import { TrainingBridgeProvider } from '../contexts/TrainingContext';
+import { OnboardingOverlay } from '../components/OnboardingOverlay';
 
 export default function Home() {
   const playgroundRef = useRef<HTMLDivElement>(null);
@@ -28,7 +30,8 @@ export default function Home() {
   };
 
   return (
-    <>
+    <TrainingBridgeProvider>
+      <OnboardingOverlay onStartTraining={scrollToPlayground} onStartTour={handleStartTour} />
       <GrainOverlay />
       <HeroSection
         onScrollToPlayground={scrollToPlayground}
@@ -44,6 +47,6 @@ export default function Home() {
       </div>
       <InspirationSection />
       <RichFooter />
-    </>
+    </TrainingBridgeProvider>
   );
 }
