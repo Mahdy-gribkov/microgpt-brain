@@ -7,24 +7,13 @@ import Sidebar from "@/components/visualizer/Sidebar";
 import { runInference } from "@/engine/visualizer-model";
 import { Tokenizer } from "@/engine/visualizer-tokenizer";
 import type { InferenceTrace, ModelConfig, ModelWeights } from "@/lib/visualizer-types";
-import { useInView } from "framer-motion";
 import { useTrainingBridge } from "@/contexts/TrainingContext";
-
-interface VisualizerSectionProps {
-    startTour?: boolean;
-    /** When true, skip useInView check and render canvas immediately (dedicated route) */
-    forceMount?: boolean;
-}
 
 type WeightSource = 'demo' | 'live';
 
 const DEFAULT_INPUT = "The cat sat on";
 
-export default function VisualizerSection({ startTour, forceMount }: VisualizerSectionProps) {
-    const sectionRef = useRef<HTMLDivElement>(null);
-    // Track current visibility (canvas mounts/unmounts with scroll)
-    const isInView = useInView(sectionRef, { margin: "-50px" });
-    const shouldMount = forceMount || isInView;
+export default function VisualizerSection() {
 
     // Demo (pretrained) weights
     const [demoWeights, setDemoWeights] = useState<ModelWeights | null>(null);
@@ -55,9 +44,9 @@ export default function VisualizerSection({ startTour, forceMount }: VisualizerS
         }
     }, [isTraining, liveWeights]);
 
-    // Load demo weights only when in view
+    // Load demo weights on mount
     useEffect(() => {
-        if (shouldMount && !hasLoaded) {
+        if (!hasLoaded) {
             // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot load guard
             setHasLoaded(true);
             fetch("/pretrained-weights.json")
@@ -68,7 +57,7 @@ export default function VisualizerSection({ startTour, forceMount }: VisualizerS
                 })
                 .catch((err: unknown) => console.error("Failed to load visualizer weights:", err));
         }
-    }, [shouldMount, hasLoaded]);
+    }, [hasLoaded]);
 
     // Auto-run inference with default text when demo weights first load
     const hasAutoRun = useRef(false);
@@ -152,82 +141,67 @@ export default function VisualizerSection({ startTour, forceMount }: VisualizerS
     }, [weights, modelConfig]);
 
     return (
-        <section ref={sectionRef} className={`relative w-full overflow-hidden ${forceMount ? 'h-full' : 'h-[600px] md:h-[900px] border-y border-white/5'}`}>
-            {/* Ambient Background Glow */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-amber-900/10 via-transparent to-transparent opacity-50 pointer-events-none" />
-
-            {/* Header / Title Overlay */}
-            <div className="absolute top-0 left-0 w-full p-8 z-10 pointer-events-none flex flex-col items-center pt-12">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono text-amber-500/80 mb-4 tracking-widest uppercase">
-                    <span className={`w-1.5 h-1.5 rounded-full ${activeSource === 'live' ? 'bg-green-500' : 'bg-amber-500'} animate-pulse`} />
-                    {activeSource === 'live' ? `Live Training · Step ${snapshotStep}` : 'Demo Inference Engine'}
-                </div>
-                <h2 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-200 via-amber-500 to-amber-200 mb-4 drop-shadow-[0_0_15px_rgba(212,148,58,0.3)] text-center">
-                    Neural Internals
-                </h2>
-                <p className="text-white/40 max-w-lg text-center text-sm leading-relaxed">
-                    {activeSource === 'live'
-                        ? 'Watching your model learn in real-time. Weights update every 50 training steps.'
-                        : 'Peer inside the transformer architecture. Watch tokens flow through attention heads and MLP layers in real-time.'}
-                </p>
-                {/* Source toggle */}
-                {liveWeights && (
-                    <div className="pointer-events-auto mt-3 flex gap-1 rounded-full bg-white/5 border border-white/10 p-0.5" role="group" aria-label="Weight source">
-                        <button
-                            type="button"
-                            onClick={() => setPreferredSource('demo')}
-                            aria-pressed={activeSource === 'demo'}
-                            className={`px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 ${activeSource === 'demo' ? 'bg-amber-500/20 text-amber-400' : 'text-white/40 hover:text-white/60'}`}
-                        >
-                            Demo
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setPreferredSource('live')}
-                            aria-pressed={activeSource === 'live'}
-                            className={`px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 ${activeSource === 'live' ? 'bg-green-500/20 text-green-400' : 'text-white/40 hover:text-white/60'}`}
-                        >
-                            Live
-                        </button>
-                    </div>
-                )}
+        <div className="relative w-full h-full">
+            {/* 3D Canvas */}
+            <div className="absolute inset-0 z-0">
+                <Visualizer trace={trace} processing={isProcessing} />
             </div>
 
-            {shouldMount ? (
-                <>
-                    <div className="absolute inset-0 z-0">
-                        <Visualizer trace={trace} processing={isProcessing} startTour={startTour} />
+            {/* Controls Overlay */}
+            <div className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-end">
+                {/* Status badge */}
+                <div className="absolute top-3 left-3 pointer-events-none">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 text-[10px] font-mono text-amber-500/80 tracking-widest uppercase">
+                        <span className={`w-1.5 h-1.5 rounded-full ${activeSource === 'live' ? 'bg-green-500' : 'bg-amber-500'} animate-pulse`} />
+                        {activeSource === 'live' ? `Live · Step ${snapshotStep}` : 'Demo'}
                     </div>
-
-                    {/* Controls Overlay */}
-                    <div className="absolute inset-0 z-20 pointer-events-none flex flex-col justify-end">
-                        {/* Sidebar (Right HUD) - hidden on mobile */}
-                        <div className="hidden md:block absolute right-0 top-0 h-full w-full max-w-md pointer-events-none">
-                            <div className="pointer-events-auto h-full p-6 flex flex-col justify-center">
-                                <Sidebar
-                                    trace={trace}
-                                    currentStep={0}
-                                    hoveredLayer={null}
-                                    temperature={temperature}
-                                    topK={topK}
-                                    onParamsChange={handleParamsChange}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Input Bar (Bottom Command Deck) */}
-                        <div className="pointer-events-auto w-full pb-12 flex justify-center bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-20">
-                            <div className="w-full max-w-3xl px-6">
-                                <InputBar onProcess={(t) => handleProcess(t)} isProcessing={isProcessing} />
-                            </div>
-                        </div>
-                    </div>
-                </>
-            ) : (
-                <div className="w-full h-full flex items-center justify-center text-white/20 font-mono text-xs uppercase tracking-widest">
-                    [ Scroll to Initialize Neural Engine ]
                 </div>
-            )}
-        </section>
+
+                {/* Source toggle (only when live weights available) */}
+                {liveWeights && (
+                    <div className="absolute top-3 right-3 pointer-events-auto">
+                        <div className="flex gap-1 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 p-0.5" role="group" aria-label="Weight source">
+                            <button
+                                type="button"
+                                onClick={() => setPreferredSource('demo')}
+                                aria-pressed={activeSource === 'demo'}
+                                className={`px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider transition-colors min-h-[44px] ${activeSource === 'demo' ? 'bg-amber-500/20 text-amber-400' : 'text-white/40 hover:text-white/60'}`}
+                            >
+                                Demo
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setPreferredSource('live')}
+                                aria-pressed={activeSource === 'live'}
+                                className={`px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider transition-colors min-h-[44px] ${activeSource === 'live' ? 'bg-green-500/20 text-green-400' : 'text-white/40 hover:text-white/60'}`}
+                            >
+                                Live
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Sidebar (Right HUD) - hidden on mobile */}
+                <div className="hidden md:block absolute right-0 top-12 bottom-16 w-full max-w-xs pointer-events-none">
+                    <div className="pointer-events-auto h-full p-4 flex flex-col justify-center">
+                        <Sidebar
+                            trace={trace}
+                            currentStep={0}
+                            hoveredLayer={null}
+                            temperature={temperature}
+                            topK={topK}
+                            onParamsChange={handleParamsChange}
+                        />
+                    </div>
+                </div>
+
+                {/* Input Bar (Bottom) */}
+                <div className="pointer-events-auto w-full pb-4 flex justify-center bg-gradient-to-t from-black/80 to-transparent pt-8">
+                    <div className="w-full max-w-2xl px-4">
+                        <InputBar onProcess={(t) => handleProcess(t)} isProcessing={isProcessing} />
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }

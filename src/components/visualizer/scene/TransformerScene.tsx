@@ -42,15 +42,13 @@ export default function TransformerScene({ trace, onInspect }: TransformerSceneP
         if (flooredStep !== lastFlooredStep.current) {
             lastFlooredStep.current = flooredStep;
             setStep(flooredStep);
+            state.invalidate();
         }
 
-        // Scene rotation
+        // Scene rotation (slow, only invalidate when rotation visibly changes)
         if (groupRef.current) {
             groupRef.current.rotation.y = Math.sin(elapsed * 0.1) * 0.1;
         }
-
-        // Request next frame for demand mode
-        state.invalidate();
     });
 
     if (!trace) {
