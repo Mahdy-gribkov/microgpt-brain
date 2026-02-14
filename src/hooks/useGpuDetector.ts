@@ -34,11 +34,11 @@ export function useGpuDetector() {
                     return;
                 }
 
-                // @ts-expect-error - requestAdapterInfo is not yet in all type definitions
-                const info = await adapter.requestAdapterInfo();
+                // adapter.info is a property (not a method) in modern Chrome
+                const info = adapter.info;
                 if (mounted) {
                     setAvailable(true);
-                    setGpuName(info.device || info.description || 'Generic WebGPU');
+                    setGpuName(info?.device || info?.description || 'Generic WebGPU');
                 }
             } catch (err) {
                 console.warn('WebGPU detection failed:', err);

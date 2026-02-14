@@ -19,10 +19,15 @@ export async function initGpu(): Promise<GpuContext | null> {
 
     if (!adapter) return null;
 
+    // Request device with adapter's actual limits (don't exceed what GPU supports)
+    const adapterLimits = adapter.limits;
     const device = await adapter.requestDevice({
       requiredLimits: {
-        maxComputeWorkgroupSizeX: 256,
-        maxStorageBufferBindingSize: 128 * 1024 * 1024, // 128MB
+        maxComputeWorkgroupSizeX: Math.min(256, adapterLimits.maxComputeWorkgroupSizeX),
+        maxStorageBufferBindingSize: Math.min(
+          128 * 1024 * 1024,
+          adapterLimits.maxStorageBufferBindingSize
+        ),
       },
     });
 
