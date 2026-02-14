@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { TrainingBridgeProvider } from "../contexts/TrainingContext";
+import { SharedNav } from "../components/SharedNav";
+import { GrainOverlay } from "../components/GrainOverlay";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,7 +40,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <TrainingBridgeProvider>
+          <SharedNav />
+          <GrainOverlay />
+          {children}
+        </TrainingBridgeProvider>
       </body>
     </html>
   );
